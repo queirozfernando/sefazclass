@@ -123,6 +123,7 @@ CREATE CLASS NfeIssClass STATIC
 
 CREATE CLASS NfeIcmsClass STATIC
 
+   VAR  Orig     INIT 0
    VAR  Cst      INIT ""
    VAR  Base     INIT 0
    VAR  Reducao  INIT 0
@@ -166,6 +167,7 @@ CREATE CLASS NfeProdutoClass STATIC
    VAR  Nome          INIT ""
    VAR  CfOp          INIT ""
    VAR  NCM           INIT ""
+   VAR  CEST          INIT ""
    VAR  GTIN          INIT ""
    VAR  GTINTRIB      INIT ""
    VAR  Anp           INIT ""
@@ -499,6 +501,7 @@ STATIC FUNCTION XmlToDocNfeEmi( cXmlInput, oDocSped )
          oDocSped:Produto[ nCont ]:Nome            := Upper( XmlNode( cBlocoProd, "xProd" ) )
          oDocSped:Produto[ nCont ]:CFOP            := Transform( XmlNode( cBlocoProd, "CFOP" ), "@R 9.9999" )
          oDocSped:Produto[ nCont ]:NCM             := XmlNode( cBlocoProd, "NCM" )
+         oDocSped:Produto[ nCont ]:CEST            := XmlNode( cBlocoProd, "CEST" )		 
          oDocSped:Produto[ nCont ]:GTIN            := SoNumeros( XmlNode( cBlocoProd, "cEAN" ) )
          oDocSped:Produto[ nCont ]:GTINTrib        := SoNumeros( XmlNode( cBlocoProd, "cEANTrib" ) )
          IF Empty( oDocSped:Produto[ nCont ]:GTINTrib )
@@ -523,6 +526,7 @@ STATIC FUNCTION XmlToDocNfeEmi( cXmlInput, oDocSped )
          IF Len( oDocSped:Produto[ nCont ]:Icms:Cst ) < 3
             oDocSped:Produto[ nCont ]:Icms:Cst     := XmlNode( cBlocoIcms, "orig" ) + XmlNode( cBlocoIcms, "CSOSN" )
          ENDIF
+         oDocSped:Produto[ nCont ]:Icms:Orig       := Val( XmlNode( cBlocoIcms, "orig" ) )
          oDocSped:Produto[ nCont ]:Icms:Base       := Val( XmlNode( cBlocoIcms, "vBC" ) )
          oDocSped:Produto[ nCont ]:Icms:Reducao    := Val( XmlNode( cBlocoIcms, "vRedBC" ) )
          oDocSped:Produto[ nCont ]:Icms:Aliquota   := Val( XmlNode( cBlocoIcms, "pICMS" ) )

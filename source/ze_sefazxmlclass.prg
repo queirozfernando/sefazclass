@@ -123,6 +123,7 @@ CREATE CLASS NfeIssClass STATIC
 
 CREATE CLASS NfeIcmsClass STATIC
 
+   VAR  Orig     INIT 0
    VAR  Cst      INIT ""
    VAR  Base     INIT 0
    VAR  Reducao  INIT 0
@@ -166,14 +167,17 @@ CREATE CLASS NfeProdutoClass STATIC
    VAR  Nome          INIT ""
    VAR  CfOp          INIT ""
    VAR  NCM           INIT ""
+   VAR  CEST          INIT ""
    VAR  GTIN          INIT ""
    VAR  GTINTRIB      INIT ""
    VAR  Anp           INIT ""
    VAR  Unidade       INIT ""
+   VAR  UnidTrib	  INIT "" // 2019.01.08 Fernando Queiroz
    VAR  Pedido        INIT "" // 2018.01.23 Jackson
    VAR  Qtde          INIT 0
-   VAR  QtdeTrib      INIT 0
+   VAR  QtdeTrib      INIT 0 // 2019.01.08 Fernando Queiroz
    VAR  ValorUnitario INIT 0
+   VAR  ValUnitTrib   INIT 0 // 2019.01.08 Fernando Queiroz
    VAR  ValorTotal    INIT 0
    VAR  Desconto      INIT 0 // 2018.01.23 Jackson
    VAR  Icms
@@ -221,6 +225,7 @@ CREATE CLASS NfeDuplicataClass STATIC
 
 CREATE CLASS DocSpedClass STATIC
 
+
    VAR  cChave                  INIT ""
    VAR  cModFis                 INIT "" // 2014.11.20
    VAR  TipoNFe                 INIT "" // 2018.01.23 Jackson
@@ -240,6 +245,10 @@ CREATE CLASS DocSpedClass STATIC
    VAR  EnderecoEntrega      // --- init
    VAR  Produto                 INIT {}
    VAR  Transporte           // --- init
+   VAR  Fatura	   				INIT ""  // 2019.03.29 Fernando Queiroz
+   VAR  ValorOriginal 			INIT 0   // 2019.03.29 Fernando Queiroz
+   VAR  ValorDesconto 			INIT 0   // 2019.03.29 Fernando Queiroz
+   VAR  ValorLiquido 			INIT 0   // 2019.03.29 Fernando Queiroz
    VAR  Duplicata               INIT {}
    VAR  Totais               // --- init
    VAR  ExportacaoUfEmbarque    INIT ""
@@ -376,7 +385,7 @@ STATIC FUNCTION XmlToDocNfeEmi( cXmlInput, oDocSped )
    LOCAL cBlocoInfNfeComTag, cBlocoChave, cBlocoIde, cBlocoInfAdic
    LOCAL cBlocoEmit, cBlocoEndereco, cBlocoDest, cBlocoTransporte, cBlocoTransp, cBlocoVeiculo, cBlocoVol, cBlocoTotal
    LOCAL cBlocoItem, cBlocoProd,  cBlocoIpi, cBlocoIcms, cBlocoPis, cBlocoCofins
-   LOCAL cBlocoComb, cBlocoCobranca, cBlocoDup, cBlocoPG
+   LOCAL cBlocoComb, cBlocoFatura, cBlocoCobranca, cBlocoDup, cBlocoPG
 
    cBlocoInfNfeComTag := XmlNode( cXmlInput, "infNFe", .T. )
 
@@ -496,17 +505,18 @@ STATIC FUNCTION XmlToDocNfeEmi( cXmlInput, oDocSped )
          oDocSped:Produto[ nCont ]:Nome            := Upper( XmlNode( cBlocoProd, "xProd" ) )
          oDocSped:Produto[ nCont ]:CFOP            := Transform( XmlNode( cBlocoProd, "CFOP" ), "@R 9.9999" )
          oDocSped:Produto[ nCont ]:NCM             := XmlNode( cBlocoProd, "NCM" )
+         oDocSped:Produto[ nCont ]:CEST            := XmlNode( cBlocoProd, "CEST" )		 
          oDocSped:Produto[ nCont ]:GTIN            := SoNumeros( XmlNode( cBlocoProd, "cEAN" ) )
          oDocSped:Produto[ nCont ]:GTINTrib        := SoNumeros( XmlNode( cBlocoProd, "cEANTrib" ) )
          IF Empty( oDocSped:Produto[ nCont ]:GTINTrib )
             oDocSped:Produto[ nCont ]:GTINTrib := oDocSped:Produto[ nCont ]:GTIN
          ENDIF
          oDocSped:Produto[ nCont ]:Unidade         := Upper( XmlNode( cBlocoProd, "uCom" ) )
-         oDocSped:Produto[ nCont ]:UnidadeTrib     := Upper( XmlNode( cBlocoProd, "uTrib" ) )
+         oDocSped:Produto[ nCont ]:UnidTrib        := Upper( XmlNode( cBlocoProd, "uTrib" ) ) // 2019.01.08 Fernando Queiroz
          oDocSped:Produto[ nCont ]:Qtde            := Val( XmlNode( cBlocoProd, "qCom" ) )
-         oDocSped:Produto[ nCont ]:QtdeTrib        := Val( XmlNode( cBlocoProd, "qTrib" ) )
+         oDocSped:Produto[ nCont ]:QtdeTrib        := Val( XmlNode( cBlocoProd, "qTrib" ) ) // 2019.01.08 Fernando Queiroz
          oDocSped:Produto[ nCont ]:ValorUnitario   := Val( XmlNode( cBlocoProd, "vUnCom" ) )
-         oDocSped:Produto[ nCont ]:ValUnitTrib     := Val( XmlNode( cBlocoProd, "vUnTrib" ) )
+         oDocSped:Produto[ nCont ]:ValUnitTrib     := Val( XmlNode( cBlocoProd, "vUnTrib" ) ) // 2019.01.08 Fernando Queiroz
          oDocSped:Produto[ nCont ]:ValorTotal      := Val( XmlNode( cBlocoProd, "vProd" ) )
          oDocSped:Produto[ nCont ]:Desconto        := Val( XmlNode( cBlocoProd, "vDesc" ) ) // 2018.01.23 Jackson
          oDocSped:Produto[ nCont ]:Pedido          := Val( XmlNode( cBlocoProd, "xPed" ) ) // 2018.01.23 Jackson
@@ -520,6 +530,7 @@ STATIC FUNCTION XmlToDocNfeEmi( cXmlInput, oDocSped )
          IF Len( oDocSped:Produto[ nCont ]:Icms:Cst ) < 3
             oDocSped:Produto[ nCont ]:Icms:Cst     := XmlNode( cBlocoIcms, "orig" ) + XmlNode( cBlocoIcms, "CSOSN" )
          ENDIF
+         oDocSped:Produto[ nCont ]:Icms:Orig       := Val( XmlNode( cBlocoIcms, "orig" ) )
          oDocSped:Produto[ nCont ]:Icms:Base       := Val( XmlNode( cBlocoIcms, "vBC" ) )
          oDocSped:Produto[ nCont ]:Icms:Reducao    := Val( XmlNode( cBlocoIcms, "vRedBC" ) )
          oDocSped:Produto[ nCont ]:Icms:Aliquota   := Val( XmlNode( cBlocoIcms, "pICMS" ) )
@@ -543,13 +554,23 @@ STATIC FUNCTION XmlToDocNfeEmi( cXmlInput, oDocSped )
          oDocSped:Produto[ nCont ]:Anp             := XmlNode( cBlocoComb, "cProdANP" )
    NEXT
 
+   // Detalhes do Bloco de Faturamento na NFe
+   // 2019.03.29 Fernando Queiroz
+
+   cBlocoFatura := XmlNode( cXmlInput, "fat" )
+   
+   oDocSped:Fatura      			:= XmlNode( cBlocoFatura, "nFat" )
+   oDocSped:ValorOriginal     	:= Val( XmlNode( cBlocoFatura, "vOrig" ) )
+   oDocSped:ValorDesconto      	:= Val( XmlNode( cBlocoFatura, "vDesc" ) )
+   oDocSped:ValorLiquido       	:= Val( XmlNode( cBlocoFatura, "vLic" ) )
+	
    cBlocoCobranca := XmlNode( cXmlInput, "cobr" )
    aList := MultipleNodeToArray( cBlocoCobranca, "dup" )
    FOR EACH cBlocoDup IN aList
-      cBlocoDup := XmlNode( cBlocoCobranca, "dup" )
-      IF Len( Trim( cBlocoDup ) ) = 0
-         EXIT
-      ENDIF
+//      cBlocoDup := XmlNode( cBlocoCobranca, "dup" )
+//      IF Len( Trim( cBlocoDup ) ) = 0
+//        EXIT
+//      ENDIF
       AAdd( oDocSped:Duplicata, NFEDuplicataClass():New() )
       nCont := Len( oDocSped:Duplicata )
       oDocSped:Duplicata[ nCont ]:Duplicata  := XmlNode( cBlocoDup, "nDup" ) // 2018.01.23 Jackson
